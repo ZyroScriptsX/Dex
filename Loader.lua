@@ -11379,58 +11379,68 @@ Main = (function()
         local player = service.Players.LocalPlayer
         
         cptsOnMouseClick1 = mouse.Button1Down:Connect(function()
-          print("[GuiSelect] Click detected at:", mouse.X, mouse.Y)
-          
-          -- Define helper to process selection
-          local function trySelectFromContainer(container, containerName)
-            if not container then 
-              print("[GuiSelect] Container is nil:", containerName)
-              return false 
-            end
+          pcall(function()
             
-            print("[GuiSelect] Checking container:", containerName)
-            
-            -- Get objects at mouse position safely
-            local success, objects = pcall(function() 
-                return container:GetGuiObjectsAtPosition(mouse.X, mouse.Y) 
-            end)
-            
-            if not success then
-              print("[GuiSelect] Failed to get objects from", containerName, "- Error:", objects)
-              return false
-            end
-            
-            if not objects or #objects == 0 then
-              print("[GuiSelect] No objects found in", containerName)
-              return false
-            end
-            
-            print("[GuiSelect] Found", #objects, "objects in", containerName)
-            
-            for i, obj in ipairs(objects) do
-                print("[GuiSelect]   Object", i, ":", obj:GetFullName())
+            -- Helper: Determines if an object is actually visible to the human eye.
+            -- This filters out "invisible walls" like PromptOverlays that capture clicks but show nothing.
+            local function isVisuallyVisible(obj)
+                if not obj.Visible then return false end
                 
-                -- Check the object itself, or walk up its parents to find a valid node
-                local candidate = obj
-                while candidate and candidate ~= container and candidate ~= game do
-                    if nodes[candidate] then
-                        print("[GuiSelect] Found valid node:", candidate:GetFullName())
-                        selection:Set(nodes[candidate])
-                        Explorer.ViewNode(nodes[candidate])
-                        return true -- Found and selected
-                    end
-                    candidate = candidate.Parent
+                -- 1. Check Background
+                if obj.BackgroundTransparency < 1 then return true end
+                if obj.BorderSizePixel > 0 and obj.BorderTransparency < 1 then return true end
+                
+                -- 2. Check Text
+                if obj:IsA("TextLabel") or obj:IsA("TextButton") or obj:IsA("TextBox") then
+                    if obj.TextTransparency < 1 and obj.Text ~= "" then return true end
+                    if obj.TextStrokeTransparency < 1 and obj.Text ~= "" then return true end
                 end
+                
+                -- 3. Check Images
+                if obj:IsA("ImageLabel") or obj:IsA("ImageButton") then
+                    if obj.ImageTransparency < 1 then return true end
+                end
+                
+                -- 4. Check ScrollingFrames (Scrollbars might be visible)
+                if obj:IsA("ScrollingFrame") then
+                    if obj.ScrollBarImageTransparency < 1 then return true end
+                end
+                
+                -- If none of the above, it's an invisible container/overlay
+                return false
             end
             
-            print("[GuiSelect] No valid nodes found in", containerName)
-            return false
-          end
-          
-          -- 1. Priority: Check CoreGui (Topmost layer)
-          if trySelectFromContainer(game:GetService("CoreGui"), "CoreGui") then return end
-          -- 2. Fallback: Check PlayerGui
-          trySelectFromContainer(player:FindFirstChildWhichIsA("PlayerGui"), "PlayerGui")
+            local function trySelectFromContainer(container)
+                if not container then return false end
+                
+                local s, objects = pcall(function() 
+                    return container:GetGuiObjectsAtPosition(mouse.X, mouse.Y) 
+                end)
+                
+                if s and objects then
+                    for _, obj in ipairs(objects) do
+                        -- Check if the object is visually visible before trying to select it
+                        if isVisuallyVisible(obj) then
+                            local candidate = obj
+                            -- Walk up the tree in case the clicked object isn't indexed (like a shadow or sub-element)
+                            while candidate and candidate ~= container and candidate ~= game do
+                                if nodes[candidate] then
+                                    selection:Set(nodes[candidate])
+                                    Explorer.ViewNode(nodes[candidate])
+                                    return true -- Found the top-most VISIBLE object
+                                end
+                                candidate = candidate.Parent
+                            end
+                        end
+                    end
+                end
+                return false
+            end
+            -- 1. Priority: Check CoreGui first (for visible Core UI like Chat, PlayerList)
+            if trySelectFromContainer(game:GetService("CoreGui")) then return end
+            -- 2. Fallback: Check PlayerGui
+            trySelectFromContainer(player:FindFirstChildWhichIsA("PlayerGui"))
+          end)
         end)
       else 
         if cptsOnMouseClick1 ~= nil then 
