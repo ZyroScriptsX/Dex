@@ -11379,24 +11379,65 @@ Main = (function()
         local player = service.Players.LocalPlayer
         
         cptsOnMouseClick1 = mouse.Button1Down:Connect(function()
-          pcall(function()
-            local objects = player.PlayerGui:GetGuiObjectsAtPosition(mouse.X, mouse.Y)
-            
-            local coreObjects = game:GetService("CoreGui"):GetGuiObjectsAtPosition(mouse.X, mouse.Y)
-            for _, obj in next, coreObjects do
-              table.insert(objects, obj)
+          print("[GuiSelect] Click detected at:", mouse.X, mouse.Y)
+          
+          -- Define helper to process selection
+          local function trySelectFromContainer(container, containerName)
+            if not container then 
+              print("[GuiSelect] Container is nil:", containerName)
+              return false 
             end
             
-            for _,object in next, objects do
-              if nodes[object] then
-                selection:Set(nodes[object])
-                Explorer.ViewNode(nodes[object])
-                break
-              end
+            print("[GuiSelect] Checking container:", containerName)
+            
+            -- Get objects at mouse position safely
+            local success, objects = pcall(function() 
+                return container:GetGuiObjectsAtPosition(mouse.X, mouse.Y) 
+            end)
+            
+            if not success then
+              print("[GuiSelect] Failed to get objects from", containerName, "- Error:", objects)
+              return false
             end
-          end)
+            
+            if not objects or #objects == 0 then
+              print("[GuiSelect] No objects found in", containerName)
+              return false
+            end
+            
+            print("[GuiSelect] Found", #objects, "objects in", containerName)
+            
+            for i, obj in ipairs(objects) do
+                print("[GuiSelect]   Object", i, ":", obj:GetFullName())
+                
+                -- Check the object itself, or walk up its parents to find a valid node
+                local candidate = obj
+                while candidate and candidate ~= container and candidate ~= game do
+                    if nodes[candidate] then
+                        print("[GuiSelect] Found valid node:", candidate:GetFullName())
+                        selection:Set(nodes[candidate])
+                        Explorer.ViewNode(nodes[candidate])
+                        return true -- Found and selected
+                    end
+                    candidate = candidate.Parent
+                end
+            end
+            
+            print("[GuiSelect] No valid nodes found in", containerName)
+            return false
+          end
+          
+          -- 1. Priority: Check CoreGui (Topmost layer)
+          if trySelectFromContainer(game:GetService("CoreGui"), "CoreGui") then return end
+          -- 2. Fallback: Check PlayerGui
+          trySelectFromContainer(player:FindFirstChildWhichIsA("PlayerGui"), "PlayerGui")
         end)
-      else if cptsOnMouseClick1 ~= nil then cptsOnMouseClick1:Disconnect() cptsOnMouseClick1 = nil end end
+      else 
+        if cptsOnMouseClick1 ~= nil then 
+            cptsOnMouseClick1:Disconnect() 
+            cptsOnMouseClick1 = nil 
+        end 
+      end
     end})
     
     Lib.ShowGui(gui)
