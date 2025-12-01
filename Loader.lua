@@ -11372,7 +11372,7 @@ Main = (function()
       else if cptsOnMouseClick ~= nil then cptsOnMouseClick:Disconnect() cptsOnMouseClick = nil end end
     end})
     
-local cptsOnMouseClick1 = nil
+    local cptsOnMouseClick1 = nil
     Main.CreateApp({Name = "Click GuiObj to select", IconMap = Main.LargeIcons, Icon = 6, OnClick = function(callback)
       if callback then
         local mouse = Main.Mouse
@@ -11387,7 +11387,7 @@ local cptsOnMouseClick1 = nil
               table.insert(objects, obj)
             end
             
-            for _, object in next, objects do
+            for _,object in next, objects do
               if nodes[object] then
                 selection:Set(nodes[object])
                 Explorer.ViewNode(nodes[object])
@@ -11398,6 +11398,9 @@ local cptsOnMouseClick1 = nil
         end)
       else if cptsOnMouseClick1 ~= nil then cptsOnMouseClick1:Disconnect() cptsOnMouseClick1 = nil end end
     end})
+    
+    Lib.ShowGui(gui)
+  end
   
   Main.SetupFilesystem = function()
     if not env.writefile or not env.makefolder then return end
