@@ -205,6 +205,8 @@ def build_usage_embed(data: dict[str, Any]) -> discord.Embed:
 
 
 @bot.tree.command(name="usage", description="Check your Claude session usage limits")
+@app_commands.allowed_installs(guilds=True, users=True)
+@app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
 async def usage_command(interaction: discord.Interaction) -> None:
     await interaction.response.defer()
     result = await bot.fetch_usage()
