@@ -204,9 +204,15 @@ def build_usage_embed(data: dict[str, Any]) -> discord.Embed:
     return embed
 
 
+def decorate_usage_for_user_install(func):
+    # discord.py < 2.4 does not support install/context decorators.
+    if hasattr(app_commands, "allowed_installs") and hasattr(app_commands, "allowed_contexts"):
+        func = app_commands.allowed_installs(guilds=True, users=True)(func)
+        func = app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)(func)
+    return func
+
+
 @bot.tree.command(name="usage", description="Check your Claude session usage limits")
-@app_commands.allowed_installs(guilds=True, users=True)
-@app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
 async def usage_command(interaction: discord.Interaction) -> None:
     await interaction.response.defer()
     result = await bot.fetch_usage()
@@ -215,6 +221,9 @@ async def usage_command(interaction: discord.Interaction) -> None:
         return
     embed = build_usage_embed(result)
     await interaction.followup.send(embed=embed)
+
+
+usage_command = decorate_usage_for_user_install(usage_command)
 
 
 @bot.tree.command(
